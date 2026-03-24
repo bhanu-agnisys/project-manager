@@ -1,0 +1,14 @@
+{
+  "name": "project-manager-electron",
+  "version": "1.0.0",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "dev": "electron . --no-sandbox",
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^33.2.0"
+  }
+}
+

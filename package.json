@@ -1,0 +1,11 @@
+{
+  "name": "project-manager",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix electron-app",
+    "start": "npm run start --prefix electron-app",
+    "install:electron": "npm install --prefix electron-app"
+  }
+}
+
