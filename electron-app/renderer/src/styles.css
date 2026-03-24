@@ -18,6 +18,10 @@ body {
     linear-gradient(145deg, #09121a, #122130 55%, #09121a);
 }
 
+#root {
+  min-height: 100vh;
+}
+
 .app-shell {
   min-height: 100vh;
   display: grid;
@@ -53,6 +57,10 @@ h1 {
   max-width: 720px;
   color: #bfd1db;
   line-height: 1.7;
+}
+
+.summary code {
+  color: #ffffff;
 }
 
 .meta-grid {

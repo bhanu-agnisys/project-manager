@@ -1,13 +1,12 @@
 const path = require('node:path');
 const { app, BrowserWindow } = require('electron');
 
-function createWindow() {
+async function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 980,
     minHeight: 640,
-    backgroundColor: '#0d141b',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -15,7 +14,12 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadFile(path.join(__dirname, 'index.html'));
+  if (process.env.ELECTRON_RENDERER_URL) {
+    await mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
+    return;
+  }
+
+  await mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
 }
 
 app.whenReady().then(() => {
@@ -33,4 +37,3 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
-
