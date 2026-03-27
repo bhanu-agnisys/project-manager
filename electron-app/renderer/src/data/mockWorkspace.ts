@@ -9,6 +9,8 @@ export const mockWorkspace: WorkspaceSnapshot = {
       description: 'Owns staffing, project setup, and delivery oversight.',
       permissions: [
         'create_project',
+        'create_task',
+        'update_any_task',
         'view_all_projects',
         'manage_project_members',
         'manage_project_settings',
@@ -23,6 +25,7 @@ export const mockWorkspace: WorkspaceSnapshot = {
       key: 'team_lead',
       description: 'Coordinates execution, assignment, and day-to-day flow.',
       permissions: [
+        'create_project',
         'create_task',
         'update_any_task',
         'assign_tasks',
@@ -35,7 +38,13 @@ export const mockWorkspace: WorkspaceSnapshot = {
       name: 'Software Engineer',
       key: 'software_engineer',
       description: 'Ships tasks, contributes to planning, and collaborates on canvas.',
-      permissions: ['create_task', 'manage_canvas']
+      permissions: [
+        'create_project',
+        'create_task',
+        'update_any_task',
+        'assign_tasks',
+        'manage_canvas'
+      ]
     },
     {
       id: 'designation_admin',
@@ -43,6 +52,10 @@ export const mockWorkspace: WorkspaceSnapshot = {
       key: 'admin',
       description: 'Oversees workspace setup, role definitions, and broad operational access.',
       permissions: [
+        'create_project',
+        'create_task',
+        'update_any_task',
+        'assign_tasks',
         'manage_designations',
         'manage_team',
         'view_all_projects',

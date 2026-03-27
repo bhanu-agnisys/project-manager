@@ -1,6 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { Panel } from '../../components/Panel';
+import {
+  canAssignTasksInProject,
+  canEditTaskInProject,
+  getCreatableProjects
+} from '../../lib/access';
 import { formatDate, titleCase } from '../../lib/formatters';
 import { useWorkspaceStore } from '../../store/useWorkspaceStore';
 import type { Task } from '../../types/workspace';
@@ -9,23 +14,44 @@ type TaskDraft = Pick<
   Task,
   'title' | 'description' | 'status' | 'priority' | 'dueDate' | 'assignedUserId'
 >;
+type NewTaskDraft = TaskDraft & {
+  projectId: string;
+};
 
 function toDateInputValue(value: string) {
   return value.slice(0, 10);
 }
 
 export function TasksPage() {
-  const { tasks, users, projects, projectMembers, updateTask } = useWorkspaceStore(
+  const { tasks, users, projects, projectMembers, designations, currentUserId, createTask, updateTask, deleteTask } = useWorkspaceStore(
     useShallow((state) => ({
       tasks: state.tasks,
       users: state.users,
       projects: state.projects,
       projectMembers: state.projectMembers,
-      updateTask: state.updateTask
+      designations: state.designations,
+      currentUserId: state.currentUserId,
+      createTask: state.createTask,
+      updateTask: state.updateTask,
+      deleteTask: state.deleteTask
     }))
   );
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [taskDraft, setTaskDraft] = useState<TaskDraft | null>(null);
+  const creatableProjects = useMemo(
+    () => getCreatableProjects(currentUserId, users, designations, projectMembers, projects),
+    [currentUserId, users, designations, projectMembers, projects]
+  );
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
+  const [newTaskDraft, setNewTaskDraft] = useState<NewTaskDraft>({
+    projectId: creatableProjects[0]?.id || '',
+    title: '',
+    description: '',
+    status: 'todo',
+    priority: 'medium',
+    dueDate: '',
+    assignedUserId: null
+  });
 
   const userMap = useMemo(() => new Map(users.map((user) => [user.id, user])), [users]);
   const projectMap = useMemo(
@@ -45,6 +71,33 @@ export function TasksPage() {
       ),
     [projectMembers, projects, userMap]
   );
+  const newTaskAssignableUsers = (taskMembersMap.get(newTaskDraft.projectId) || []).filter(Boolean);
+
+  useEffect(() => {
+    if (!creatableProjects.length) {
+      return;
+    }
+
+    const hasSelectedProject = creatableProjects.some(
+      (project) => project.id === newTaskDraft.projectId
+    );
+
+    if (!hasSelectedProject) {
+      resetNewTaskDraft(creatableProjects[0].id);
+    }
+  }, [creatableProjects, newTaskDraft.projectId]);
+
+  function resetNewTaskDraft(projectId: string) {
+    setNewTaskDraft({
+      projectId,
+      title: '',
+      description: '',
+      status: 'todo',
+      priority: 'medium',
+      dueDate: '',
+      assignedUserId: null
+    });
+  }
 
   function startEdit(task: Task) {
     setEditingTaskId(task.id);
@@ -70,6 +123,28 @@ export function TasksPage() {
 
     updateTask(taskId, taskDraft);
     cancelEdit();
+  }
+
+  function handleDeleteTask(taskId: string, title: string) {
+    if (!window.confirm(`Delete task "${title}"?`)) {
+      return;
+    }
+
+    deleteTask(taskId);
+
+    if (editingTaskId === taskId) {
+      cancelEdit();
+    }
+  }
+
+  function handleCreateTask() {
+    if (!newTaskDraft.projectId || !newTaskDraft.title.trim() || !newTaskDraft.dueDate) {
+      return;
+    }
+
+    createTask(newTaskDraft);
+    resetNewTaskDraft(newTaskDraft.projectId);
+    setIsCreatingTask(false);
   }
 
   const renderTaskList = (items: typeof tasks) => (
@@ -166,6 +241,15 @@ export function TasksPage() {
                   <span className="text-sm font-medium text-text-muted">Assignee</span>
                   <select
                     value={taskDraft.assignedUserId || ''}
+                    disabled={
+                      !canAssignTasksInProject(
+                        currentUserId,
+                        task.projectId,
+                        users,
+                        designations,
+                        projectMembers
+                      )
+                    }
                     onChange={(event) =>
                       setTaskDraft((current) =>
                         current
@@ -191,6 +275,13 @@ export function TasksPage() {
               <div className="flex flex-wrap justify-end gap-2">
                 <button
                   type="button"
+                  onClick={() => handleDeleteTask(task.id, task.title)}
+                  className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-500/15 dark:text-red-300"
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
                   onClick={cancelEdit}
                   className="rounded-full border border-border-soft bg-surface-panel px-4 py-2 text-sm font-semibold text-text-muted transition-colors hover:text-app-text"
                 >
@@ -213,13 +304,36 @@ export function TasksPage() {
                   <span className="text-xs uppercase tracking-[0.18em] text-text-muted">
                     {titleCase(task.status)}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => startEdit(task)}
-                    className="rounded-full border border-border-soft bg-surface-panel px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-text-muted transition-colors hover:text-app-text"
-                  >
-                    Edit
-                  </button>
+                  {canEditTaskInProject(
+                    currentUserId,
+                    task.projectId,
+                    users,
+                    designations,
+                    projectMembers
+                  ) && (
+                    <button
+                      type="button"
+                      onClick={() => startEdit(task)}
+                      className="rounded-full border border-border-soft bg-surface-panel px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-text-muted transition-colors hover:text-app-text"
+                    >
+                      Edit
+                    </button>
+                  )}
+                  {canEditTaskInProject(
+                    currentUserId,
+                    task.projectId,
+                    users,
+                    designations,
+                    projectMembers
+                  ) && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteTask(task.id, task.title)}
+                      className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-red-600 transition-colors hover:bg-red-500/15 dark:text-red-300"
+                    >
+                      Delete
+                    </button>
+                  )}
                 </div>
               </div>
               <p className="mt-2 text-sm leading-6 text-text-muted">{task.description}</p>
@@ -241,10 +355,188 @@ export function TasksPage() {
 
   return (
     <div className="space-y-6">
-      <Panel eyebrow="Project Delivery" title="Tasks under projects">
+      {isCreatingTask && creatableProjects.length > 0 && (
+        <Panel
+          eyebrow="New Task"
+          title="Create a project task"
+          action={
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setIsCreatingTask(false)}
+                className="rounded-full border border-border-soft bg-surface-card px-4 py-2 text-sm font-semibold text-text-muted transition-colors hover:text-app-text"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateTask}
+                className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-contrast shadow-accent-glow"
+              >
+                Create Task
+              </button>
+            </div>
+          }
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-text-muted">Project</span>
+              <select
+                value={newTaskDraft.projectId}
+                onChange={(event) => {
+                  const nextProjectId = event.target.value;
+                  setNewTaskDraft((current) => ({
+                    ...current,
+                    projectId: nextProjectId,
+                    assignedUserId: null
+                  }));
+                }}
+                className="w-full rounded-2xl border border-border-soft bg-surface-card px-4 py-3 outline-none transition-colors focus:border-accent"
+              >
+                {creatableProjects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-text-muted">Title</span>
+              <input
+                value={newTaskDraft.title}
+                onChange={(event) =>
+                  setNewTaskDraft((current) => ({ ...current, title: event.target.value }))
+                }
+                className="w-full rounded-2xl border border-border-soft bg-surface-card px-4 py-3 outline-none transition-colors focus:border-accent"
+              />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-text-muted">Status</span>
+              <select
+                value={newTaskDraft.status}
+                onChange={(event) =>
+                  setNewTaskDraft((current) => ({
+                    ...current,
+                    status: event.target.value as NewTaskDraft['status']
+                  }))
+                }
+                className="w-full rounded-2xl border border-border-soft bg-surface-card px-4 py-3 outline-none transition-colors focus:border-accent"
+              >
+                <option value="todo">Todo</option>
+                <option value="in_progress">In Progress</option>
+                <option value="done">Done</option>
+              </select>
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-text-muted">Priority</span>
+              <select
+                value={newTaskDraft.priority}
+                onChange={(event) =>
+                  setNewTaskDraft((current) => ({
+                    ...current,
+                    priority: event.target.value as NewTaskDraft['priority']
+                  }))
+                }
+                className="w-full rounded-2xl border border-border-soft bg-surface-card px-4 py-3 outline-none transition-colors focus:border-accent"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-text-muted">Due date</span>
+              <input
+                type="date"
+                value={newTaskDraft.dueDate}
+                onChange={(event) =>
+                  setNewTaskDraft((current) => ({ ...current, dueDate: event.target.value }))
+                }
+                className="w-full rounded-2xl border border-border-soft bg-surface-card px-4 py-3 outline-none transition-colors focus:border-accent"
+              />
+            </label>
+
+            <label className="block space-y-2 md:col-span-2">
+              <span className="text-sm font-medium text-text-muted">Description</span>
+              <textarea
+                rows={4}
+                value={newTaskDraft.description}
+                onChange={(event) =>
+                  setNewTaskDraft((current) => ({
+                    ...current,
+                    description: event.target.value
+                  }))
+                }
+                className="w-full rounded-2xl border border-border-soft bg-surface-card px-4 py-3 outline-none transition-colors focus:border-accent"
+              />
+            </label>
+
+            <label className="block space-y-2 md:col-span-2">
+              <span className="text-sm font-medium text-text-muted">Assignee</span>
+              <select
+                value={newTaskDraft.assignedUserId || ''}
+                onChange={(event) =>
+                  setNewTaskDraft((current) => ({
+                    ...current,
+                    assignedUserId: event.target.value || null
+                  }))
+                }
+                disabled={
+                  !canAssignTasksInProject(
+                    currentUserId,
+                    newTaskDraft.projectId,
+                    users,
+                    designations,
+                    projectMembers
+                  )
+                }
+                className="w-full rounded-2xl border border-border-soft bg-surface-card px-4 py-3 outline-none transition-colors focus:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <option value="">Unassigned</option>
+                {newTaskAssignableUsers.map((member) => (
+                  <option key={member?.id} value={member?.id}>
+                    {member?.fullName}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </Panel>
+      )}
+
+      <Panel
+        eyebrow="Project Delivery"
+        title="Tasks under projects"
+        action={
+          creatableProjects.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (!newTaskDraft.projectId && creatableProjects[0]) {
+                  resetNewTaskDraft(creatableProjects[0].id);
+                }
+                setIsCreatingTask((current) => !current);
+              }}
+              className="rounded-full border border-border-soft bg-surface-card px-4 py-2 text-sm font-semibold text-text-muted transition-colors hover:text-app-text"
+            >
+              {isCreatingTask ? 'Close New Task' : 'New Task'}
+            </button>
+          ) : null
+        }
+      >
         <p className="mb-4 text-sm leading-7 text-text-muted">
           Every task now belongs to a project, which keeps planning, permissions, and delivery history tied to a single workspace.
         </p>
+        {creatableProjects.length === 0 && (
+          <p className="mb-4 rounded-2xl border border-border-soft bg-surface-card px-4 py-3 text-sm text-text-muted">
+            You can add tasks only in projects where you are a contributor or admin with task permissions.
+          </p>
+        )}
         {renderTaskList(tasks)}
       </Panel>
     </div>

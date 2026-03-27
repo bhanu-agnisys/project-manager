@@ -8,6 +8,8 @@ const demoWorkspace = Object.freeze({
       key: "engineering_manager",
       permissions: [
         PERMISSIONS.CREATE_PROJECT,
+        PERMISSIONS.CREATE_TASK,
+        PERMISSIONS.UPDATE_ANY_TASK,
         PERMISSIONS.VIEW_ALL_PROJECTS,
         PERMISSIONS.MANAGE_PROJECT_MEMBERS,
         PERMISSIONS.MANAGE_PROJECT_SETTINGS,
@@ -21,6 +23,7 @@ const demoWorkspace = Object.freeze({
       name: "Team Lead",
       key: "team_lead",
       permissions: [
+        PERMISSIONS.CREATE_PROJECT,
         PERMISSIONS.CREATE_TASK,
         PERMISSIONS.UPDATE_ANY_TASK,
         PERMISSIONS.ASSIGN_TASKS,
@@ -32,13 +35,23 @@ const demoWorkspace = Object.freeze({
       id: "designation_software_engineer",
       name: "Software Engineer",
       key: "software_engineer",
-      permissions: [PERMISSIONS.CREATE_TASK, PERMISSIONS.MANAGE_CANVAS],
+      permissions: [
+        PERMISSIONS.CREATE_PROJECT,
+        PERMISSIONS.CREATE_TASK,
+        PERMISSIONS.UPDATE_ANY_TASK,
+        PERMISSIONS.ASSIGN_TASKS,
+        PERMISSIONS.MANAGE_CANVAS,
+      ],
     },
     {
       id: "designation_admin",
       name: "Admin",
       key: "admin",
       permissions: [
+        PERMISSIONS.CREATE_PROJECT,
+        PERMISSIONS.CREATE_TASK,
+        PERMISSIONS.UPDATE_ANY_TASK,
+        PERMISSIONS.ASSIGN_TASKS,
         PERMISSIONS.MANAGE_DESIGNATIONS,
         PERMISSIONS.MANAGE_TEAM,
         PERMISSIONS.VIEW_ALL_PROJECTS,

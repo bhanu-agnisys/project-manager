@@ -6,6 +6,13 @@ import { KanbanBoard } from '../../components/KanbanBoard';
 import { MemberList } from '../../components/MemberList';
 import { Panel } from '../../components/Panel';
 import { ProjectComments } from '../../components/ProjectComments';
+import {
+  canAssignTasksInProject,
+  canCommentInProject,
+  canCreateProject,
+  canEditProject,
+  canEditTaskInProject
+} from '../../lib/access';
 import { titleCase } from '../../lib/formatters';
 import { useWorkspaceStore } from '../../store/useWorkspaceStore';
 import type { ProjectStatus } from '../../types/workspace';
@@ -21,6 +28,7 @@ export function ProjectsPage() {
   const {
     projects,
     activeProjectId,
+    designations,
     projectMembers,
     tasks,
     teams,
@@ -28,12 +36,15 @@ export function ProjectsPage() {
     comments,
     activityLogs,
     currentUserId,
+    createProject,
+    deleteProject,
     updateProject,
     addComment
   } = useWorkspaceStore(
     useShallow((state) => ({
       projects: state.projects,
       activeProjectId: state.activeProjectId,
+      designations: state.designations,
       projectMembers: state.projectMembers,
       tasks: state.tasks,
       teams: state.teams,
@@ -41,12 +52,26 @@ export function ProjectsPage() {
       comments: state.comments,
       activityLogs: state.activityLogs,
       currentUserId: state.currentUserId,
+      createProject: state.createProject,
+      deleteProject: state.deleteProject,
       updateProject: state.updateProject,
       addComment: state.addComment
     }))
   );
   const [isEditingProject, setIsEditingProject] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [projectDraft, setProjectDraft] = useState<{
+    name: string;
+    key: string;
+    status: ProjectStatus;
+    description: string;
+  }>({
+    name: '',
+    key: '',
+    status: 'planning',
+    description: ''
+  });
+  const [newProjectDraft, setNewProjectDraft] = useState<{
     name: string;
     key: string;
     status: ProjectStatus;
@@ -75,10 +100,35 @@ export function ProjectsPage() {
 
   const projectTasks = tasks.filter((task) => task.projectId === activeProject.id);
   const members = projectMembers.filter((member) => member.projectId === activeProject.id);
+  const assignableUsers = users.filter((user) =>
+    members.some((member) => member.userId === user.id)
+  );
+  const canCreateProjects = canCreateProject(currentUserId, users, designations);
+  const canEditActiveProject = canEditProject(
+    currentUserId,
+    activeProject.id,
+    users,
+    designations,
+    projectMembers
+  );
+  const canManageTasksForActiveProject = canEditTaskInProject(
+    currentUserId,
+    activeProject.id,
+    users,
+    designations,
+    projectMembers
+  );
+  const canAssignTasksForActiveProject = canAssignTasksInProject(
+    currentUserId,
+    activeProject.id,
+    users,
+    designations,
+    projectMembers
+  );
   const projectComments = comments
     .filter((comment) => comment.projectId === activeProject.id)
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-  const canComment = members.some((member) => member.userId === currentUserId);
+  const canComment = canCommentInProject(currentUserId, activeProject.id, projectMembers);
   const timeline = activityLogs
     .filter((log) => {
       if (log.entityType === 'project' && log.entityId === activeProject.id) {
@@ -96,12 +146,141 @@ export function ProjectsPage() {
     setIsEditingProject(false);
   }
 
+  function handleCreateProject() {
+    if (!newProjectDraft.name.trim() || !newProjectDraft.key.trim()) {
+      return;
+    }
+
+    createProject(newProjectDraft);
+    setNewProjectDraft({
+      name: '',
+      key: '',
+      status: 'planning',
+      description: ''
+    });
+    setIsCreatingProject(false);
+  }
+
+  function handleDeleteProject() {
+    if (!window.confirm(`Delete project "${activeProject.name}"?`)) {
+      return;
+    }
+
+    deleteProject(activeProject.id);
+  }
+
   return (
     <div className="space-y-6">
+      {isCreatingProject && canCreateProjects && (
+        <Panel
+          eyebrow="New Project"
+          title="Create a project"
+          action={
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setIsCreatingProject(false)}
+                className="rounded-full border border-border-soft bg-surface-card px-4 py-2 text-sm font-semibold text-text-muted transition-colors hover:text-app-text"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateProject}
+                className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-contrast shadow-accent-glow"
+              >
+                Create Project
+              </button>
+            </div>
+          }
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-text-muted">Project name</span>
+              <input
+                value={newProjectDraft.name}
+                onChange={(event) =>
+                  setNewProjectDraft((current) => ({ ...current, name: event.target.value }))
+                }
+                className="w-full rounded-2xl border border-border-soft bg-surface-card px-4 py-3 outline-none transition-colors focus:border-accent"
+              />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-text-muted">Project key</span>
+              <input
+                value={newProjectDraft.key}
+                onChange={(event) =>
+                  setNewProjectDraft((current) => ({
+                    ...current,
+                    key: event.target.value.toUpperCase()
+                  }))
+                }
+                className="w-full rounded-2xl border border-border-soft bg-surface-card px-4 py-3 outline-none transition-colors focus:border-accent"
+              />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-text-muted">Status</span>
+              <select
+                value={newProjectDraft.status}
+                onChange={(event) =>
+                  setNewProjectDraft((current) => ({
+                    ...current,
+                    status: event.target.value as ProjectStatus
+                  }))
+                }
+                className="w-full rounded-2xl border border-border-soft bg-surface-card px-4 py-3 outline-none transition-colors focus:border-accent"
+              >
+                <option value="planning">Planning</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="scrapped">Scrapped</option>
+              </select>
+            </label>
+
+            <div className="md:col-span-2">
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-text-muted">Description</span>
+                <textarea
+                  rows={4}
+                  value={newProjectDraft.description}
+                  onChange={(event) =>
+                    setNewProjectDraft((current) => ({
+                      ...current,
+                      description: event.target.value
+                    }))
+                  }
+                  className="w-full rounded-2xl border border-border-soft bg-surface-card px-4 py-3 outline-none transition-colors focus:border-accent"
+                />
+              </label>
+            </div>
+          </div>
+        </Panel>
+      )}
+
       <Panel
         title="Projects"
         action={
           <div className="flex flex-wrap gap-2">
+            {!isEditingProject && canCreateProjects && (
+              <button
+                type="button"
+                onClick={() => setIsCreatingProject((current) => !current)}
+                className="rounded-full border border-border-soft bg-surface-card px-4 py-2 text-sm font-semibold text-text-muted transition-colors hover:text-app-text"
+              >
+                {isCreatingProject ? 'Close New Project' : 'New Project'}
+              </button>
+            )}
+            {!isEditingProject && canEditActiveProject && projects.length > 1 && (
+              <button
+                type="button"
+                onClick={handleDeleteProject}
+                className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-500/15 dark:text-red-300"
+              >
+                Delete Project
+              </button>
+            )}
             {isEditingProject ? (
               <>
                 <button
@@ -127,7 +306,7 @@ export function ProjectsPage() {
                   Save Project
                 </button>
               </>
-            ) : (
+            ) : canEditActiveProject ? (
               <button
                 type="button"
                 onClick={() => setIsEditingProject(true)}
@@ -135,6 +314,11 @@ export function ProjectsPage() {
               >
                 Edit Project
               </button>
+            ) : null}
+            {!canEditActiveProject && (
+              <span className="rounded-full bg-surface-muted px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
+                Project editing requires admin membership
+              </span>
             )}
           </div>
         }
@@ -251,7 +435,14 @@ export function ProjectsPage() {
         </Panel>
 
         <Panel eyebrow="Delivery" title="Kanban board">
-          <KanbanBoard tasks={projectTasks} users={users} />
+          <KanbanBoard
+            projectId={activeProject.id}
+            tasks={projectTasks}
+            users={users}
+            assignableUsers={assignableUsers}
+            canMoveTasks={canManageTasksForActiveProject}
+            canAssignTasks={canAssignTasksForActiveProject}
+          />
         </Panel>
 
         <Panel eyebrow="Canvas" title="Visual planning space">
