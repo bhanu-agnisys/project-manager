@@ -1,61 +1,11 @@
-const express = require("express");
 const { envList } = require("./utils/envUtils");
 const {
   connectToDb,
   disconnectFromDb,
 } = require("./services/db/connectDb");
+const { createApp } = require("./src/app");
 
-const app = express();
-
-app.disable("x-powered-by");
-app.use(express.json({ limit: "1mb" }));
-app.use(express.urlencoded({ extended: true }));
-
-app.use((req, res, next) => {
-  const startedAt = Date.now();
-
-  res.on("finish", () => {
-    const durationMs = Date.now() - startedAt;
-    console.log(
-      `${req.method} ${req.originalUrl} ${res.statusCode} - ${durationMs}ms`
-    );
-  });
-
-  next();
-});
-
-app.get("/health", (req, res) => {
-  res.status(200).json({
-    status: "ok",
-    environment: envList.NODE_ENV,
-    uptime: Math.floor(process.uptime()),
-  });
-});
-
-app.use((req, res) => {
-  res.status(404).json({ error: "Route not found" });
-});
-
-app.use((err, req, res, next) => {
-  console.error("Request failed", {
-    method: req.method,
-    url: req.originalUrl,
-    message: err.message,
-  });
-
-  if (res.headersSent) {
-    return next(err);
-  }
-
-  const statusCode =
-    Number.isInteger(err.statusCode) && err.statusCode >= 400
-      ? err.statusCode
-      : 500;
-
-  res.status(statusCode).json({
-    error: statusCode >= 500 ? "Internal server error" : err.message,
-  });
-});
+const app = createApp();
 
 let server;
 let isShuttingDown = false;

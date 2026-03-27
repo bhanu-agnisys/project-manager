@@ -47,6 +47,8 @@ function envParser() {
     PORT: parsePort(process.env.PORT),
     NODE_ENV: parseNodeEnv(process.env.NODE_ENV || process.env.MODE),
     MONGOURL: getRequiredEnvValue("MONGOURL", "MONGO_URL"),
+    JWT_SECRET: process.env.JWT_SECRET || "project-manager-dev-secret",
+    JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",
   });
 }
 

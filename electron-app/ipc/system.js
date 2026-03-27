@@ -5,8 +5,13 @@ const CHANNELS = {
   getBackendUrl: 'system:get-backend-url'
 };
 
+function getBackendUrl() {
+  return process.env.BACKEND_URL || 'http://127.0.0.1:3000/api';
+}
+
 function registerSystemIpc(ipcMain) {
   ipcMain.removeHandler(CHANNELS.getRuntimeInfo);
+  ipcMain.removeHandler(CHANNELS.getBackendUrl);
 
   ipcMain.handle(CHANNELS.getRuntimeInfo, () => ({
     appName: app.getName(),
@@ -19,13 +24,10 @@ function registerSystemIpc(ipcMain) {
   }));
 
 
-  ipcMain.handle(CHANNELS.getBackendUrl, () => {
-    return "this is bacend url from electron"
-  });
+  ipcMain.handle(CHANNELS.getBackendUrl, () => getBackendUrl());
 }
 
 module.exports = {
   CHANNELS,
   registerSystemIpc
 };
-

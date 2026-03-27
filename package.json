@@ -4,8 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "npm run dev --prefix electron-app",
+    "dev:desktop": "npm run dev --prefix electron-app",
+    "dev:server": "npm run dev --prefix server",
     "start": "npm run start --prefix electron-app",
-    "install:electron": "npm install --prefix electron-app"
+    "start:server": "npm run start --prefix server",
+    "install:electron": "npm install --prefix electron-app",
+    "install:server": "npm install --prefix server",
+    "install:all": "npm run install:server && npm run install:electron"
   }
 }
-
