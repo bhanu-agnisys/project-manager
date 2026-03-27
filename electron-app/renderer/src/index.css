@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-app-bg: var(--app-bg);
+  --color-app-text: var(--app-text);
+  --color-text-muted: var(--text-muted);
+  --color-surface-panel: var(--surface-panel);
+  --color-surface-card: var(--surface-card);
+  --color-surface-muted: var(--surface-muted);
+  --color-border-soft: var(--border-soft);
+  --color-accent: var(--accent);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-dot-1: var(--dot-1);
+  --color-dot-2: var(--dot-2);
+  --color-dot-3: var(--dot-3);
+  --shadow-accent-glow: 0 18px 40px -20px var(--accent-shadow);
+  --shadow-panel-depth: 0 25px 80px -40px var(--panel-shadow);
+}
+
+@layer base {
+  :root {
+    --app-bg: #f5f0e8;
+    --app-text: #1e1d1a;
+    --text-muted: #5f5b54;
+    --surface-panel: rgba(255, 250, 242, 0.78);
+    --surface-card: #fffdf8;
+    --surface-muted: rgba(90, 66, 38, 0.08);
+    --surface-glow: rgba(255, 181, 96, 0.38);
+    --surface-accent: rgba(249, 115, 22, 0.18);
+    --border-soft: rgba(81, 55, 26, 0.12);
+    --accent: #c55b1b;
+    --accent-contrast: #fff8ee;
+    --accent-shadow: rgba(197, 91, 27, 0.42);
+    --panel-shadow: rgba(92, 54, 18, 0.28);
+    --dot-1: #ef4444;
+    --dot-2: #f59e0b;
+    --dot-3: #10b981;
+  }
+
+  :root[data-theme='dark'] {
+    --app-bg: #111827;
+    --app-text: #f8fafc;
+    --text-muted: #94a3b8;
+    --surface-panel: rgba(15, 23, 42, 0.82);
+    --surface-card: #0f172a;
+    --surface-muted: rgba(148, 163, 184, 0.1);
+    --surface-glow: rgba(34, 211, 238, 0.22);
+    --surface-accent: rgba(59, 130, 246, 0.2);
+    --border-soft: rgba(148, 163, 184, 0.16);
+    --accent: #38bdf8;
+    --accent-contrast: #082f49;
+    --accent-shadow: rgba(56, 189, 248, 0.35);
+    --panel-shadow: rgba(2, 6, 23, 0.6);
+    --dot-1: #fb7185;
+    --dot-2: #fbbf24;
+    --dot-3: #4ade80;
+  }
+
+  html {
+    background: var(--app-bg);
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--app-bg);
+    color: var(--app-text);
+    transition:
+      background-color 300ms ease,
+      color 300ms ease;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  * {
+    border-color: var(--border-soft);
+  }
+}

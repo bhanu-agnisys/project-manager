@@ -1,18 +1,25 @@
 const path = require('node:path');
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
+const { registerSystemIpc } = require('./ipc/system.js');
 
-async function createWindow() {
+const PRELOAD_ENTRY = path.join(__dirname, 'preload', 'main.preload.js');
+
+async function createWindow(windowOptions = {}) {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 980,
     minHeight: 640,
+    ...windowOptions,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: PRELOAD_ENTRY,
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      ...(windowOptions.webPreferences || {})
     }
   });
+
+  mainWindow.webContents.openDevTools();
 
   if (process.env.ELECTRON_RENDERER_URL) {
     await mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
@@ -23,6 +30,7 @@ async function createWindow() {
 }
 
 app.whenReady().then(() => {
+  registerSystemIpc(ipcMain);
   createWindow();
 
   app.on('activate', () => {
